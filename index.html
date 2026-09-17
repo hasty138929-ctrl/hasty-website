@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>صنعت داده | Cyber-Craft 3D</title>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Vazirmatn', sans-serif; user-select: none; }
+        body { overflow: hidden; background: #05050a; touch-action: none; }
+        
+        #gameCanvas { display: block; width: 100vw; height: 100vh; }
+
+        /* HUD رابط کاربری */
+        .hud {
+            position: absolute; top: 15px; left: 15px; right: 15px;
+            display: flex; justify-content: space-between; align-items: center;
+            z-index: 10; pointer-events: none;
+        }
+        .hud-item {
+            background: rgba(10, 10, 20, 0.8);
+            border: 1px solid #00e5ff;
+            border-radius: 10px;
+            padding: 5px 15px;
+            color: #fff;
+            font-weight: bold;
+            font-size: 14px;
+            box-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
+            backdrop-filter: blur(5px);
+        }
+        .hud-item span { color: #00e5ff; }
+        
+        .health-bar {
+            width: 100px; height: 10px; background: #333; border-radius: 5px; overflow: hidden; border: 1px solid #ff0055;
+        }
+        .health-fill { height: 100%; width: 100%; background: #ff0055; transition: width 0.3s; }
+
+        /* دکمه فروشگاه */
+        .shop-btn {
+            position: absolute; bottom: 20px; left: 20px;
+            background: linear-gradient(45deg, #b800ff, #00e5ff);
+            border: none; border-radius: 50px; padding: 12px 25px;
+            color: #fff; font-weight: bold; font-size: 16px;
+            cursor: pointer; z-index: 20;
+            box-shadow: 0 0 20px rgba(184, 0, 255, 0.6);
+            display: flex; align-items: center; gap: 10px;
+        }
+
+        /* فروشگاه */
+        .shop-modal {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9);
+            width: 90%; max-width: 400px; background: rgba(10, 10, 15, 0.95);
+            border: 2px solid #00e5ff; border-radius: 20px; padding: 20px;
+            z-index: 100; box-shadow: 0 0 50px rgba(0, 229, 255, 0.4);
+            display: none; flex-direction: column; gap: 15px; direction: rtl;
+            backdrop-filter: blur(15px); transition: transform 0.3s;
+        }
+        .shop-modal.active { display: flex; transform: translate(-50%, -50%) scale(1); }
+        .shop-modal h2 { color: #00e5ff; text-align: center; font-size: 20px; }
+        .shop-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-height: 60vh; overflow-y: auto; }
+        .shop-item {
+            background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px; padding: 15px; display: flex; flex-direction: column; align-items: center;
+            cursor: pointer; transition: 0.2s;
+        }
+        .shop-item:hover { background: rgba(0, 229, 255, 0.1); border-color: #00e5ff; }
+        .shop-item .icon { font-size: 30px; }
+        .shop-item .cost { font-size: 12px; color: #b800ff; font-weight: bold; margin-top: 5px; }
+        .shop-item .desc { font-size: 10px; color: #aaa; text-align: center; margin-top: 5px; }
+        .close-btn {
+            background: #ff0055; color: #fff; border: none; padding: 12px; border-radius: 10px;
+            font-family: inherit; font-weight: bold; cursor: pointer; font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- HUD -->
+    <div class="hud">
+        <div class="hud-item">داده: <span id="scoreVal">0</span> 💾</div>
+        <div class="health-bar"><div class="health-fill" id="healthFill"></div></div>
+        <div class="hud-item">مرحله: <span id="levelVal">1</span></div>
+    </div>
+
+    <button class="shop-btn" onclick="toggleShop()">🛒 فروشگاه</button>
+
+    <!-- فروشگاه -->
+    <div class="shop-modal" id="shopModal">
+        <h2>🛒 خرید مکانیزم دفاعی</h2>
+        <div class="shop-grid" id="shopGrid"></div>
+        <button class="close-btn" onclick="toggleShop()">بستن</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // اندازه صفحه
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // --- متغیرهای بازی ---
+        let score = 0;
+        let level = 1;
+        let health = 100;
+        let gameActive = true;
+        let isShopOpen = false;
+        
+        const mouse = { x: canvas.width / 2, y: canvas.height / 2 };
+        
+        // آرایه‌ها
+        let dataCubes = [];
+        let viruses = [];
+        let particles = [];
+        let inventory = {}; // کوله پشتی
+
+        // --- تعریف داده‌ها ---
+        const dataTypes = [
+            { label: '1', points: 1, color: '#00ffcc', type: 'normal' },
+            { label: '2', points: 2, color: '#00e5ff', type: 'normal' },
+            { label: '3', points: 3, color: '#b800ff', type: 'normal' },
+            { label: '4', points: 4, color: '#ff00cc', type: 'normal' },
+            { label: '5', points: 5, color: '#ffcc00', type: 'normal' },
+            { label: '6', points: 6, color: '#ff6600', type: 'normal' },
+            { label: 'PY', points: 6, color: '#3776ab', type: 'software' },
+            { label: 'XL', points: 7, color: '#217346', type: 'software' },
+            { label: 'PPT', points: 8, color: '#d24726', type: 'software' },
+            { label: 'AI', points: 9, color: '#ff0055', type: 'software' },
+            { label: '🤖', points: 10, color: '#00e5ff', type: 'software' }
+        ];
+
+        // --- تعریف آیتم‌های فروشگاه ---
+        const shopItems = [
+            { icon: '👊', cost: 2, defense: 1, name: 'مشت آهنین' },
+            { icon: '💊', cost: 2, defense: 1, name: 'قرص انرژی' },
+            { icon: '🗿', cost: 4, defense: 3, name: 'بتن سخت' },
+            { icon: '🚽', cost: 4, defense: 3, name: 'سپر توالت' },
+            { icon: '⚰️', cost: 4, defense: 3, name: 'تابوت' },
+            { icon: '🩴', cost: 6, defense: 5, name: 'دمپایی پاره' },
+            { icon: '🩲', cost: 6, defense: 5, name: 'شلوارک' },
+            { icon: '🔫', cost: 6, defense: 5, name: 'تفنگ آبی' }
+        ];
+
+        // --- شخصیت بازیکن (ادمک زرد بامزه) ---
+        const player = {
+            x: canvas.width / 2,
+            y: canvas.height - 100,
+            radius: 30,
+            color: '#ffcc00',
+            eyeOffsetX: 0,
+            eyeOffsetY: 0,
+            isMining: false,
+            mineTimer: 0,
+            targetX: canvas.width / 2,
+            targetY: canvas.height - 100
+        };
+
+        // --- توابع کمکی ---
+        function randomRange(min, max) { return Math.random() * (max - min) + min; }
+
+        // --- رسم شخصیت ---
+        function drawPlayer() {
+            const p = player;
+            
+            // حرکت نرم به سمت مقصد
+            p.x += (p.targetX - p.x) * 0.1;
+            p.y += (p.targetY - p.y) * 0.1;
+
+            // چشم‌ها به سمت موس نگاه می‌کنند
+            const dx = mouse.x - p.x;
+            const dy = mouse.y - p.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            const maxEyeMove = 5;
+            p.eyeOffsetX = (dx / dist) * maxEyeMove || 0;
+            p.eyeOffsetY = (dy / dist) * maxEyeMove || 0;
+
+            // رسم سایه
+            ctx.beginPath();
+            ctx.ellipse(p.x, p.y + p.radius, p.radius * 0.8, p.radius * 0.3, 0, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.fill();
+
+            // بدن (بیضی زرد)
+            ctx.beginPath();
+            ctx.ellipse(p.x, p.y, p.radius, p.radius * 0.9, 0, 0, Math.PI * 2);
+            ctx.fillStyle = p.color;
+            ctx.fill();
+            ctx.strokeStyle = '#d4a017';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // لپ‌ها (صورتی)
+            ctx.beginPath();
+            ctx.ellipse(p.x - 15, p.y + 5, 6, 4, 0, 0, Math.PI * 2);
+            ctx.fillStyle = '#ff99bb';
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(p.x + 15, p.y + 5, 6, 4, 0, 0, Math.PI * 2);
+            ctx.fillStyle = '#ff99bb';
+            ctx.fill();
+
+            // چشم‌ها (سفید)
+            ctx.beginPath();
+            ctx.arc(p.x - 10 + p.eyeOffsetX, p.y - 5 + p.eyeOffsetY, 8, 0, Math.PI * 2);
+            ctx.fillStyle = '#fff';
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(p.x + 10 + p.eyeOffsetX, p.y - 5 + p.eyeOffsetY, 8, 0, Math.PI * 2);
+            ctx.fillStyle = '#fff';
+            ctx.fill();
+
+            // مردمک‌ها (مشکی)
+            ctx.beginPath();
+            ctx.arc(p.x - 10 + p.eyeOffsetX * 1.5, p.y - 5 + p.eyeOffsetY * 1.5, 4, 0, Math.PI * 2);
+            ctx.fillStyle = '#000';
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(p.x + 10 + p.eyeOffsetX * 1.5, p.y - 5 + p.eyeOffsetY * 1.5, 4, 0, Math.PI * 2);
+            ctx.fillStyle = '#000';
+            ctx.fill();
+
+            // دهان (لبخند)
+            ctx.beginPath();
+            ctx.arc(p.x, p.y + 5, 8, 0, Math.PI);
+            ctx.strokeStyle = '#d32f2f';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // تبر قلبی شکل
+            ctx.save();
+            ctx.translate(p.x + 25, p.y - 10);
+            if (p.isMining) {
+                ctx.rotate(Math.sin(p.mineTimer * 0.5) * 0.5);
+            }
+            // دسته تبر
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(-2, 0, 4, 25);
+            // تیغه قلبی شکل
+            ctx.fillStyle = '#ff0055';
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.bezierCurveTo(-10, -10, -15, -20, 0, -25);
+            ctx.bezierCurveTo(15, -20, 10, -10, 0, 0);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // --- رسم مکعب‌های داده ---
+        function drawDataCubes() {
+            dataCubes.forEach((cube, index) => {
+                // انیمیشن شناور بودن
+                cube.y += Math.sin(Date.now() * 0.003 + cube.phase) * 0.5;
+                cube.rotation += 0.02;
+
+                ctx.save();
+                ctx.translate(cube.x, cube.y);
+                ctx.rotate(cube.rotation);
+                
+                // درخشش
+                ctx.shadowColor = cube.color;
+                ctx.shadowBlur = 15;
+                
+                // مکعب
+                ctx.fillStyle = cube.color;
+                ctx.fillRect(-15, -15, 30, 30);
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(-15, -15, 30, 30);
+                
+                ctx.shadowBlur = 0;
+                ctx.restore();
+
+                // متن داخل مکعب
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(cube.label, cube.x, cube.y);
+            });
+        }
+
+        // --- رسم ویروس‌ها ---
+        function drawViruses() {
+            viruses.forEach((virus, index) => {
+                // حرکت به سمت بازیکن
+                const dx = player.x - virus.x;
+                const dy = player.y - virus.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                
+                if (dist > 5) {
+                    virus.x += (dx / dist) * virus.speed;
+                    virus.y += (dy / dist) * virus.speed;
+                }
+
+                // رسم ویروس
+                ctx.save();
+                ctx.translate(virus.x, virus.y);
+                ctx.rotate(Date.now() * 0.005);
+                
+                // درخشش قرمز
+                ctx.shadowColor = '#ff0000';
+                ctx.shadowBlur = 20;
+
+                // بدنه ویروس (چند ضلعی)
+                ctx.beginPath();
+                const spikes = 12;
+                for (let i = 0; i < spikes * 2; i++) {
+                    const radius = i % 2 === 0 ? 20 : 15;
+                    const angle = (Math.PI / spikes) * i;
+                    ctx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
+                }
+                ctx.closePath();
+                ctx.fillStyle = '#ff0055';
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // چشم‌های ویروس
+                ctx.shadowBlur = 0;
+                ctx.beginPath();
+                ctx.arc(-5, -5, 3, 0, Math.PI * 2);
+                ctx.fillStyle = '#fff';
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(5, -5, 3, 0, Math.PI * 2);
+                ctx.fillStyle = '#fff';
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(-5, -5, 1.5, 0, Math.PI * 2);
+                ctx.fillStyle = '#000';
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(5, -5, 1.5, 0, Math.PI * 2);
+                ctx.fillStyle = '#000';
+                ctx.fill();
+
+                ctx.restore();
+
+                // بررسی برخورد با بازیکن
+                if (dist < player.radius + 20) {
+                    handleVirusAttack(virus, index);
+                }
+            });
+        }
+
+        // --- ذرات (افکت انفجار) ---
+        function drawParticles() {
+            particles.forEach((p, index) => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.02;
+                p.alpha = Math.max(0, p.life);
+
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(${p.color}, ${p.alpha})`;
+                ctx.fill();
+
+                if (p.life <= 0) particles.splice(index, 1);
+            });
+        }
+
+        // --- منطق‌های بازی ---
+        function spawnData() {
+            if (!gameActive || isShopOpen) return;
+
+            const randomData = dataTypes[Math.floor(Math.random() * dataTypes.length)];
+            
+            const cube = {
+                x: randomRange(50, canvas.width - 50),
+                y: randomRange(100, canvas.height - 150),
+                label: randomData.label,
+                points: randomData.points,
+                color: randomData.color,
+                phase: Math.random() * Math.PI * 2,
+                rotation: 0,
+                life: 1.0, // 1 = 100%
+                createdAt: Date.now()
+            };
+
+            dataCubes.push(cube);
+
+            // حذف بعد از ۵ ثانیه (اگر کاربر کلیک نکرد)
+            setTimeout(() => {
+                dataCubes = dataCubes.filter(c => c !== cube);
+            }, 5000);
+        }
+
+        function mineData(cube, index) {
+            if (!gameActive || isShopOpen) return;
+            
+            player.isMining = true;
+            player.mineTimer = 0;
+            
+            score += cube.points;
+            document.getElementById('scoreVal').innerText = score;
+            
+            // افکت ذرات
+            for (let i = 0; i < 10; i++) {
+                particles.push({
+                    x: cube.x, y: cube.y,
+                    vx: randomRange(-4, 4), vy: randomRange(-4, 4),
+                    size: randomRange(2, 5),
+                    color: cube.color === '#00ffcc' ? '0, 255, 204' : '255, 255, 255',
+                    life: 1.0
+                });
+            }
+
+            dataCubes.splice(index, 1);
+            checkLevelUp();
+        }
+
+        function checkLevelUp() {
+            const targetScore = level * 4;
+            if (score >= targetScore) {
+                level++;
+                document.getElementById('levelVal').innerText = level;
+                alert(`🎉 تبریک! به مرحله ${level} رسیدی!`);
+            }
+        }
+
+        function spawnVirus() {
+            if (!gameActive || isShopOpen) return;
+
+            // ویروس از لبه صفحه ظاهر میشه
+            const side = Math.floor(Math.random() * 4);
+            let x, y;
+            if (side === 0) { x = -50; y = randomRange(0, canvas.height); }
+            else if (side === 1) { x = canvas.width + 50; y = randomRange(0, canvas.height); }
+            else if (side === 2) { x = randomRange(0, canvas.width); y = -50; }
+            else { x = randomRange(0, canvas.width); y = canvas.height + 50; }
+
+            viruses.push({
+                x: x, y: y,
+                speed: 0.8 + (level * 0.2) // با هر مرحله سریع‌تر میشن
+            });
+        }
+
+        function handleVirusAttack(virus, index) {
+            // بررسی کوله پشتی برای دفاع
+            let defended = false;
+            for (let item in inventory) {
+                if (inventory[item] > 0) {
+                    inventory[item]--;
+                    if (inventory[item] <= 0) delete inventory[item];
+                    defended = true;
+                    break;
+                }
+            }
+
+            if (defended) {
+                // ویروس نابود میشه
+                for (let i = 0; i < 15; i++) {
+                    particles.push({
+                        x: virus.x, y: virus.y,
+                        vx: randomRange(-6, 6), vy: randomRange(-6, 6),
+                        size: randomRange(3, 6),
+                        color: '255, 0, 85',
+                        life: 1.0
+                    });
+                }
+                viruses.splice(index, 1);
+            } else {
+                // آسیب به بازیکن
+                health -= 20;
+                document.getElementById('healthFill').style.width = Math.max(0, health) + '%';
+                
+                // لرزش صفحه
+                canvas.style.transform = `translate(${randomRange(-10, 10)}px, ${randomRange(-10, 10)}px)`;
+                setTimeout(() => canvas.style.transform = 'translate(0,0)', 100);
+
+                viruses.splice(index, 1);
+
+                if (health <= 0) {
+                    gameActive = false;
+                    alert("💀 بازی تموم شد! ویروس‌ها غلبه کردن. صفحه رو رفرش کن تا دوباره بازی کنی.");
+                    location.reload();
+                }
+            }
+        }
+
+        // --- حلقه اصلی بازی ---
+        function gameLoop() {
+            if (gameActive) {
+                // رسم پس‌زمینه تیره با گرادیانت
+                const gradient = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 0, canvas.width/2, canvas.height/2, canvas.width);
+                gradient.addColorStop(0, '#1a1a2e');
+                gradient.addColorStop(1, '#05050a');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // خطوط شبکه‌ای پس‌زمینه
+                ctx.strokeStyle = 'rgba(0, 229, 255, 0.05)';
+                ctx.lineWidth = 1;
+                for (let i = 0; i < canvas.width; i += 50) {
+                    ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+                }
+                for (let i = 0; i < canvas.height; i += 50) {
+                    ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
+                }
+
+                drawDataCubes();
+                drawViruses();
+                drawParticles();
+                drawPlayer();
+
+                if (player.isMining) {
+                    player.mineTimer++;
+                    if (player.mineTimer > 15) player.isMining = false;
+                }
+            }
+            requestAnimationFrame(gameLoop);
+        }
+
+        // --- رویدادهای لمسی و کلیک ---
+        function handleTap(e) {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            const tapX = clientX - rect.left;
+            const tapY = clientY - rect.top;
+
+            // بررسی برخورد با مکعب‌های داده
+            for (let i = dataCubes.length - 1; i >= 0; i--) {
+                const cube = dataCubes[i];
+                const dist = Math.sqrt((tapX - cube.x) ** 2 + (tapY - cube.y) ** 2);
+                if (dist < 30) {
+                    mineData(cube, i);
+                    return;
+                }
+            }
+
+            // اگر روی داده کلیک نکرد، بازیکن حرکت می‌کنه
+            player.targetX = tapX;
+            player.targetY = tapY;
+        }
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = e.clientX - rect.left;
+            mouse.y = e.clientY - rect.top;
+        });
+
+        canvas.addEventListener('click', handleTap);
+        canvas.addEventListener('touchstart', handleTap, { passive: false });
+
+        // --- فروشگاه ---
+        function toggleShop() {
+            isShopOpen = !isShopOpen;
+            const shopModal = document.getElementById('shopModal');
+            if (isShopOpen) {
+                shopModal.classList.add('active');
+                renderShop();
+            } else {
+                shopModal.classList.remove('active');
+            }
+        }
+
+        function renderShop() {
+            const grid = document.getElementById('shopGrid');
+            grid.innerHTML = '';
+            shopItems.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'shop-item';
+                div.innerHTML = `
+                    <span class="icon">${item.icon}</span>
+                    <span class="cost">${item.cost} 💾</span>
+                    <span class="desc">دفاع در برابر ${item.defense} ویروس</span>
+                `;
+                div.onclick = () => buyItem(item);
+                grid.appendChild(div);
+            });
+        }
+
+        function buyItem(item) {
+            if (score >= item.cost) {
+                score -= item.cost;
+                document.getElementById('scoreVal').innerText = score;
+                if (!inventory[item.icon]) inventory[item.icon] = 0;
+                inventory[item.icon] += item.defense;
+                alert(`✅ آیتم ${item.icon} خریداری شد!`);
+            } else {
+                alert("❌ امتیاز کافی نداری!");
+            }
+        }
+
+        // --- شروع بازی ---
+        // تولید داده اولیه
+        setTimeout(spawnData, 2000);
+        setInterval(spawnData, 4000); // هر ۴ ثانیه یک داده جدید (برای تست سریع)
+
+        // شروع حمله ویروس‌ها از مرحله ۲
+        setInterval(() => {
+            if (level >= 2 && gameActive && !isShopOpen) {
+                spawnVirus();
+            }
+        }, 8000); // هر ۸ ثانیه یک ویروس جدید
+
+        gameLoop();
+    </script>
+</body>
+</html>
