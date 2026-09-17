@@ -1,0 +1,262 @@
+
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سایت فانتزی من | My Fantasy Site</title>
+    <!-- فونت وزیرمتن برای زیبایی -->
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* تنظیمات کلی */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Vazirmatn', sans-serif;
+            background-color: #0a0a0f;
+            color: #ffffff;
+            overflow-x: hidden;
+            /* افکت پس زمینه کهکشانی */
+            background-image: radial-gradient(circle at 15% 50%, rgba(0, 229, 255, 0.15), transparent 25%),
+                              radial-gradient(circle at 85% 30%, rgba(184, 0, 255, 0.15), transparent 25%);
+        }
+
+        /* نوار بالا (Navbar) */
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 5%;
+            background: rgba(10, 10, 15, 0.8);
+            backdrop-filter: blur(10px);
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(90deg, #00e5ff, #b800ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 20px;
+        }
+
+        .nav-links a {
+            color: #ccc;
+            text-decoration: none;
+            font-size: 14px;
+            transition: 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: #00e5ff;
+            text-shadow: 0 0 10px #00e5ff;
+        }
+
+        /* بخش اصلی (Hero Section) */
+        header {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 0 20px;
+            position: relative;
+        }
+
+        header h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            min-height: 60px; /* برای افکت تایپ */
+        }
+
+        header h1 span {
+            color: #00e5ff;
+            text-shadow: 0 0 20px rgba(0, 229, 255, 0.6);
+        }
+
+        header p {
+            font-size: 18px;
+            color: #a0a0b0;
+            max-width: 600px;
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+
+        .btn-main {
+            padding: 15px 40px;
+            font-size: 16px;
+            font-family: inherit;
+            color: #fff;
+            background: linear-gradient(45deg, #00e5ff, #b800ff);
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0 0 20px rgba(0, 229, 255, 0.4);
+        }
+
+        .btn-main:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 40px rgba(184, 0, 255, 0.6);
+        }
+
+        /* بخش کارت‌ها (Features) */
+        .features {
+            padding: 100px 5%;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 30px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 30px;
+            width: 300px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            transition: 0.4s;
+        }
+
+        .card:hover {
+            transform: translateY(-10px);
+            border-color: #00e5ff;
+            box-shadow: 0 10px 30px rgba(0, 229, 255, 0.1);
+        }
+
+        .card-icon {
+            font-size: 40px;
+            margin-bottom: 20px;
+        }
+
+        .card h3 {
+            font-size: 20px;
+            margin-bottom: 15px;
+            color: #00e5ff;
+        }
+
+        .card p {
+            font-size: 14px;
+            color: #a0a0b0;
+            line-height: 1.6;
+        }
+
+        /* پاورقی (Footer) */
+        footer {
+            text-align: center;
+            padding: 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            color: #666;
+            font-size: 14px;
+        }
+
+        /* انیمیشن ورود */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        header, .features {
+            animation: fadeIn 1.5s ease-out forwards;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- منوی بالا -->
+    <nav>
+        <div class="logo">دنیای من</div>
+        <div class="nav-links">
+            <a href="#home">خانه</a>
+            <a href="#features">ویژگی‌ها</a>
+            <a href="#contact">تماس</a>
+        </div>
+    </nav>
+
+    <!-- بخش اصلی -->
+    <header id="home">
+        <h1>سلام، من <span id="typing-text"></span></h1>
+        <p>به سایت شخصی من خوش آمدید! اینجا جایی است که من ایده‌های خفن و پروژه‌های برنامه‌نویسی‌ام را با دنیا به اشتراک می‌گذارم.</p>
+        <button class="btn-main" onclick="showAlert()">شروع کنید</button>
+    </header>
+
+    <!-- بخش کارت‌ها -->
+    <section class="features" id="features">
+        <div class="card">
+            <div class="card-icon">🚀</div>
+            <h3>برنامه‌نویسی</h3>
+            <p>من عاشق کدنویسی هستم و همیشه در حال یادگیری تکنولوژی‌های جدید مثل پایتون و طراحی وب هستم.</p>
+        </div>
+        <div class="card">
+            <div class="card-icon">🎮</div>
+            <h3>بازی‌سازی</h3>
+            <p>دنیای بازی‌ها فوق‌العاده است. من دوست دارم روزی بازی خودم را بسازم و آن را با همه به اشتراک بگذارم.</p>
+        </div>
+        <div class="card">
+            <div class="card-icon">🎨</div>
+            <h3>طراحی خلاقانه</h3>
+            <p>ترکیب رنگ‌ها، افکت‌های نئونی و طراحی رابط کاربری فانتزی، چیزی است که به آن علاقه دارم.</p>
+        </div>
+    </section>
+
+    <!-- پاورقی -->
+    <footer id="contact">
+        <p>ساخته شده با ❤️ و کدهای خفن | © ۲۰۲۶</p>
+    </footer>
+
+    <!-- جاوا اسکریپت برای افکت‌ها -->
+    <script>
+        // افکت تایپ متن
+        const textArray = ["یک برنامه‌نویس هستم", "یک طراح وب هستم", "یک هکر اخلاقی هستم!"];
+        let textIndex = 0;
+        let charIndex = 0;
+        const typingElement = document.getElementById("typing-text");
+
+        function type() {
+            if (charIndex < textArray[textIndex].length) {
+                typingElement.textContent += textArray[textIndex].charAt(charIndex);
+                charIndex++;
+                setTimeout(type, 100);
+            } else {
+                setTimeout(erase, 2000);
+            }
+        }
+
+        function erase() {
+            if (charIndex > 0) {
+                typingElement.textContent = textArray[textIndex].substring(0, charIndex - 1);
+                charIndex--;
+                setTimeout(erase, 50);
+            } else {
+                textIndex = (textIndex + 1) % textArray.length;
+                setTimeout(type, 500);
+            }
+        }
+
+        // شروع افکت تایپ بعد از لود شدن صفحه
+        document.addEventListener("DOMContentLoaded", function() {
+            setTimeout(type, 1000);
+        });
+
+        // دکمه خفن
+        function showAlert() {
+            alert("به سایت من خوش آمدی! 🚀 امیدوارم لذت ببری.");
+        }
+    </script>
+</body>
+  </h
